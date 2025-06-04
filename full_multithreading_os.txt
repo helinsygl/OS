@@ -1,0 +1,183 @@
+# GTU-C312 Working Multi-Threading OS
+# NO GAPS - Sequential instructions
+# Author: helinsygl
+# Date: 2025-06-04 12:05:30 UTC
+
+Begin Data Section
+# System Registers
+0 100         # PC - OS starts here
+1 15000       # SP
+2 0           # Syscall result
+3 0           # Instruction counter
+4 1           # Current thread ID
+5 0           # Time slice counter
+
+# Thread states (1=ready, 0=terminated)
+50 1          # Thread 1 state
+51 1          # Thread 2 state  
+52 1          # Thread 3 state
+
+# Thread start addresses
+60 1000       # Thread 1 start address
+61 2000       # Thread 2 start address
+62 3000       # Thread 3 start address
+
+# Thread data
+1000 64       # Thread 1: array[0]
+1001 34       # Thread 1: array[1] 
+1002 25       # Thread 1: array[2]
+
+2000 25       # Thread 2: search key
+2001 10       # Thread 2: array[0]
+2002 25       # Thread 2: array[1] <- target
+2003 30       # Thread 2: array[2]
+
+3000 5        # Thread 3: factorial input
+3001 1        # Thread 3: factorial result
+End Data Section
+
+Begin Instruction Section
+# ===== OS KERNEL - NO GAPS! =====
+100 SYSCALL PRN 9999      # OS boot message
+101 SET 0 5               # Reset time slice
+102 SET 1 4               # Start with thread 1
+103 ADD 5 1               # Increment time slice
+104 CPY 5 10              # Check time slice  
+105 SET 3 11              # Time slice limit
+106 SUBI 10 11            # Compare
+107 JIF 10 114            # If time slice not expired, continue
+108 SET 0 5               # Reset time slice
+109 ADD 4 1               # Next thread
+110 CPY 4 12              # Check bounds
+111 SET 3 11              # Max threads
+112 SUBI 12 11            # Compare
+113 JIF 12 115            # If valid, continue
+114 SET 1 4               # Reset to thread 1
+
+# Thread dispatcher
+115 CPY 4 10              # Get current thread
+116 SET 1 11              # Compare with 1
+117 CPY 10 12             # Thread ID to temp
+118 SUBI 12 11            # Compare with 1
+119 JIF 12 125            # If thread 1, dispatch
+
+120 SET 2 11              # Compare with 2
+121 CPY 10 12             # Thread ID to temp
+122 SUBI 12 11            # Compare with 2
+123 JIF 12 135            # If thread 2, dispatch
+
+124 USER 62               # Default: Execute Thread 3
+125 SET 103 0             # Jump back to scheduler loop
+
+# Thread 1 dispatcher
+126 JIF 50 130            # If thread 1 active, dispatch
+127 SET 103 0             # Thread 1 done, back to scheduler
+128 SET 0 0               # NOP
+129 SET 0 0               # NOP
+130 USER 60               # Execute Thread 1
+131 SET 103 0             # Return to scheduler
+
+# Thread 2 dispatcher  
+132 SET 0 0               # NOP
+133 SET 0 0               # NOP
+134 SET 0 0               # NOP
+135 JIF 51 139            # If thread 2 active, dispatch
+136 SET 103 0             # Thread 2 done, back to scheduler
+137 SET 0 0               # NOP
+138 SET 0 0               # NOP
+139 USER 61               # Execute Thread 2
+140 SET 103 0             # Return to scheduler
+
+# Check if all threads terminated
+141 CPY 50 10             # Thread 1 state
+142 CPY 51 11             # Thread 2 state
+143 CPY 52 12             # Thread 3 state
+144 ADD 10 11             # Sum states
+145 ADD 12 10             # Total active threads
+146 JIF 10 103            # If any active, continue
+147 SYSCALL PRN 8888      # OS shutdown message
+148 HLT                   # End OS
+
+# ===== THREAD 1: BUBBLE SORT (1000-1999) =====
+1000 SYSCALL PRN 1111     # Thread 1 start
+1001 SYSCALL PRN 1000     # Print original
+1002 SYSCALL PRN 1001
+1003 SYSCALL PRN 1002
+
+# Simple bubble sort with yields
+1004 CPY 1000 10          # val1 = arr[0]
+1005 CPY 1001 11          # val2 = arr[1]
+1006 SUBI 10 11           # compare
+1007 JIF 10 1012          # if arr[0] <= arr[1], skip
+1008 CPY 1000 12          # temp = arr[0]
+1009 CPY 1001 1000        # arr[0] = arr[1]
+1010 CPY 12 1001          # arr[1] = temp
+1011 SYSCALL YIELD        # Yield to other threads
+
+1012 CPY 1001 10          # val1 = arr[1] 
+1013 CPY 1002 11          # val2 = arr[2]
+1014 SUBI 10 11           # compare
+1015 JIF 10 1020          # if arr[1] <= arr[2], skip
+1016 CPY 1001 12          # temp = arr[1]
+1017 CPY 1002 1001        # arr[1] = arr[2]
+1018 CPY 12 1002          # arr[2] = temp
+1019 SYSCALL YIELD        # Yield to other threads
+
+1020 CPY 1000 10          # Second pass
+1021 CPY 1001 11          
+1022 SUBI 10 11           
+1023 JIF 10 1028          
+1024 CPY 1000 12          
+1025 CPY 1001 1000        
+1026 CPY 12 1001          
+1027 SYSCALL YIELD        # Yield to other threads
+
+# Print sorted results
+1028 SYSCALL PRN 1000     # Print sorted
+1029 SYSCALL PRN 1001
+1030 SYSCALL PRN 1002
+1031 SET 0 50             # Set thread 1 terminated
+1032 SYSCALL HLT          # Thread 1 done
+
+# ===== THREAD 2: LINEAR SEARCH (2000-2999) =====
+2000 SYSCALL PRN 2222     # Thread 2 start
+2001 SET 0 10             # index = 0
+2002 SET -1 11            # result = -1
+
+# Search loop
+2003 SET 2001 12          # Base address
+2004 ADDI 12 10           # current_addr = base + index
+2005 CPYI 12 13           # current_value = array[index]
+2006 SUBI 13 2000         # compare with search key
+2007 JIF 13 2012          # if not equal, continue
+2008 CPY 10 11            # result = index (FOUND!)
+2009 SET 2017 0           # jump to print
+
+2012 ADD 10 1             # index++
+2013 SET 3 12             # array size
+2014 SUBI 10 12           # compare with size
+2015 SYSCALL YIELD        # Yield to other threads
+2016 JIF 10 2003          # continue if index < size
+
+# Print search result
+2017 SYSCALL PRN 11       # Print result index
+2018 SYSCALL PRN 2000     # Print search key
+2019 SET 0 51             # Set thread 2 terminated
+2020 SYSCALL HLT          # Thread 2 done
+
+# ===== THREAD 3: FACTORIAL (3000-3999) =====
+3000 SYSCALL PRN 3333     # Thread 3 start
+3001 SET 1 10             # counter = 1
+3002 SET 1 11             # result = 1
+
+# Factorial calculation
+3003 ADDI 11 10           # result *= counter
+3004 ADD 10 1             # counter++
+3005 SUBI 10 3000         # compare with n
+3006 SYSCALL YIELD        # Yield to other threads
+3007 JIF 10 3003          # continue if counter <= n
+
+3008 SYSCALL PRN 11       # Print factorial result
+3009 SET 0 52             # Set thread 3 terminated
+3010 SYSCALL HLT          # Thread 3 done
+End Instruction Section
