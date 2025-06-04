@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-GTU-C312 CPU Simulator
+GTU-C312 CPU Simulator - COMPREHENSIVE FIX
 CSE 312 Operating Systems Project
-Author: Helin Sygl
-Date: 2025-06-04
+Author: helinsygl
+Date: 2025-06-04 14:25:46 UTC
 """
 
 import sys
 import time
 from typing import Dict, List, Optional, Any
+from output_manager import OutputManager
 
 class GTUC312CPU:
     def __init__(self, debug_mode: int = 0):
@@ -27,6 +28,12 @@ class GTUC312CPU:
         self.total_instructions = 0
         self.context_switches = 0
         
+        # OS scheduler address for SYSCALL YIELD returns
+        self.os_scheduler_address = 102  # Where OS scheduler loop starts
+        
+        # Output manager
+        self.output_manager = OutputManager()
+        
         print(f"GTU-C312 CPU Simulator initialized")
         print(f"Debug Mode: {debug_mode}")
         print(f"Memory Size: {len(self.memory)} addresses")
@@ -37,8 +44,12 @@ class GTUC312CPU:
             with open(filename, 'r', encoding='utf-8') as f:
                 content = f.read()
             
+            # Start output session
+            self.output_manager.start_session(filename.replace('.txt', ''), self.debug_mode)
+            
             self._parse_and_load(content)
             print(f"✓ Program loaded successfully: {filename}")
+            self.output_manager.log(f"✓ Program loaded successfully: {filename}")
             
         except FileNotFoundError:
             print(f"✗ Error: File '{filename}' not found")
@@ -51,7 +62,6 @@ class GTUC312CPU:
         """Parse program content and load into memory"""
         lines = content.split('\n')
         current_section = None
-        instruction_base = 0
         
         for line_num, line in enumerate(lines, 1):
             line = line.strip()
@@ -82,13 +92,13 @@ class GTUC312CPU:
                     self._load_instruction_line(line)
                     
             except Exception as e:
-                print(f"Parse error at line {line_num}: {line}")
-                print(f"Error: {e}")
+                error_msg = f"Parse error at line {line_num}: {line} - {e}"
+                print(error_msg)
+                self.output_manager.log_error(error_msg)
                 continue
     
     def _load_data_line(self, line: str):
         """Load data section line into memory"""
-        # Remove comments
         clean_line = line.split('#')[0].strip()
         if not clean_line:
             return
@@ -109,12 +119,11 @@ class GTUC312CPU:
     
     def _load_instruction_line(self, line: str):
         """Load instruction line into instruction memory"""
-        # Remove comments
         clean_line = line.split('#')[0].strip()
         if not clean_line:
             return
             
-        parts = clean_line.split(None, 1)  # Split into address and instruction
+        parts = clean_line.split(None, 1)
         if len(parts) >= 2:
             try:
                 addr = int(parts[0])
@@ -127,13 +136,17 @@ class GTUC312CPU:
     
     def run(self):
         """Main execution loop"""
-        print("🚀 Starting GTU-C312 execution...")
-        print(f"Initial PC: {self.get_pc()}")
-        print(f"Initial SP: {self.get_sp()}")
-        print("-" * 50)
+        start_msg = f"🚀 Starting GTU-C312 execution..."
+        print(start_msg)
+        self.output_manager.log(start_msg)
+        
+        initial_info = f"Initial PC: {self.get_pc()}, SP: {self.get_sp()}"
+        print(initial_info)
+        self.output_manager.log(initial_info)
+        self.output_manager.log("-" * 50)
         
         safety_counter = 0
-        max_instructions = 50000  # Safety limit
+        max_instructions = 10000  # Reduced for better testing
         
         while not self.halted and safety_counter < max_instructions:
             try:
@@ -145,24 +158,36 @@ class GTUC312CPU:
                     self._debug_step()
                     
             except KeyboardInterrupt:
-                print("\n⚠️ Execution interrupted by user")
+                interrupt_msg = "\n⚠️ Execution interrupted by user"
+                print(interrupt_msg)
+                self.output_manager.log(interrupt_msg)
                 break
             except Exception as e:
-                print(f"💥 Runtime error: {e}")
-                print(f"PC: {self.get_pc()}")
+                error_msg = f"💥 Runtime error: {e} (PC: {self.get_pc()})"
+                print(error_msg)
+                self.output_manager.log_error(error_msg)
                 break
         
         if safety_counter >= max_instructions:
-            print(f"⚠️ Execution stopped: reached safety limit ({max_instructions} instructions)")
+            limit_msg = f"⚠️ Execution stopped: reached safety limit ({max_instructions} instructions)"
+            print(limit_msg)
+            self.output_manager.log(limit_msg)
         
-        print("-" * 50)
-        print("🏁 Execution completed")
-        print(f"Total instructions executed: {self.get_instruction_count()}")
-        print(f"Context switches: {self.context_switches}")
+        # Final statistics
+        final_msg = "🏁 Execution completed"
+        print(final_msg)
+        self.output_manager.log_final_stats(
+            self.get_instruction_count(),
+            self.context_switches,
+            self.get_pc()
+        )
         
-        # Final memory state for debug mode 0
-        if self.debug_mode == 0:
-            self._print_final_memory_state()
+        # Final memory state
+        if self.debug_mode in [0, 1]:
+            self.output_manager.log_memory_state(self.memory)
+        
+        # Close output session
+        self.output_manager.close_session()
     
     def execute_single(self):
         """Execute single instruction"""
@@ -173,7 +198,9 @@ class GTUC312CPU:
         
         # Memory protection check (USER mode)
         if not self.kernel_mode and pc < 1000:
-            print(f"💥 SEGMENTATION FAULT: Accessing kernel memory at address {pc}")
+            error_msg = f"💥 SEGMENTATION FAULT: Accessing kernel memory at address {pc}"
+            print(error_msg)
+            self.output_manager.log_error(error_msg)
             self.halt()
             return
         
@@ -181,27 +208,22 @@ class GTUC312CPU:
         if pc in self.instructions:
             instruction = self.instructions[pc]
             
+            # Log instruction execution
             if self.debug_mode >= 1:
-                print(f"[{self.get_instruction_count():4d}] PC={pc:4d}: {instruction}")
+                self.output_manager.log_instruction(
+                    self.get_instruction_count(), pc, instruction
+                )
             
             self._execute_instruction(instruction)
         else:
-            # No instruction at PC - check if it's a data value
-            if pc < len(self.memory) and isinstance(self.memory[pc], int):
-                print(f"⚠️ No instruction at PC={pc}, treating as data, halting")
-            else:
-                print(f"⚠️ Invalid PC={pc}, halting")
+            error_msg = f"⚠️ No instruction at PC={pc}, halting"
+            print(error_msg)
+            self.output_manager.log_error(error_msg)
             self.halt()
             return
         
         # Update instruction counter
         self.memory[3] += 1
-        
-        # Debug outputs
-        if self.debug_mode == 1:
-            self._print_memory_state()
-        elif self.debug_mode == 3:
-            self._print_thread_state()
     
     def _execute_instruction(self, instruction: str):
         """Execute a GTU-C312 instruction"""
@@ -214,7 +236,6 @@ class GTUC312CPU:
         
         try:
             if cmd == 'SET':
-                # SET B A - Set memory A to value B
                 value = int(parts[1])
                 addr = int(parts[2])
                 self._check_memory_access(addr, "write")
@@ -222,7 +243,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'CPY':
-                # CPY A1 A2 - Copy memory A1 to A2
                 src = int(parts[1])
                 dst = int(parts[2])
                 self._check_memory_access(src, "read")
@@ -231,7 +251,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'CPYI':
-                # CPYI A1 A2 - Copy memory[A1] to A2 (indirect source)
                 src_addr = int(parts[1])
                 dst = int(parts[2])
                 self._check_memory_access(src_addr, "read")
@@ -242,7 +261,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'CPYI2':
-                # CPYI2 A1 A2 - Copy memory[A1] to memory[A2] (both indirect)
                 src_addr = int(parts[1])
                 dst_addr = int(parts[2])
                 self._check_memory_access(src_addr, "read")
@@ -255,7 +273,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'ADD':
-                # ADD A B - Add B to memory A
                 addr = int(parts[1])
                 value = int(parts[2])
                 self._check_memory_access(addr, "write")
@@ -263,7 +280,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'ADDI':
-                # ADDI A1 A2 - Add memory[A2] to memory[A1]
                 addr1 = int(parts[1])
                 addr2 = int(parts[2])
                 self._check_memory_access(addr1, "write")
@@ -272,7 +288,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'SUBI':
-                # SUBI A1 A2 - Subtract memory[A2] from memory[A1], store in A2
                 addr1 = int(parts[1])
                 addr2 = int(parts[2])
                 self._check_memory_access(addr1, "read")
@@ -282,7 +297,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'JIF':
-                # JIF A C - Jump to C if memory[A] <= 0
                 addr = int(parts[1])
                 jump_addr = int(parts[2])
                 self._check_memory_access(addr, "read")
@@ -292,7 +306,6 @@ class GTUC312CPU:
                     self.set_pc(self.get_pc() + 1)
                     
             elif cmd == 'PUSH':
-                # PUSH A - Push memory[A] onto stack
                 addr = int(parts[1])
                 self._check_memory_access(addr, "read")
                 sp = self.get_sp()
@@ -303,7 +316,6 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'POP':
-                # POP A - Pop from stack to memory[A]
                 addr = int(parts[1])
                 self._check_memory_access(addr, "write")
                 sp = self.get_sp() + 1
@@ -314,18 +326,15 @@ class GTUC312CPU:
                 self.set_pc(self.get_pc() + 1)
                 
             elif cmd == 'CALL':
-                # CALL C - Call subroutine at C
                 call_addr = int(parts[1])
                 sp = self.get_sp()
                 if sp <= 0:
                     raise RuntimeError("Stack overflow in CALL")
-                # Push return address
                 self.memory[sp] = self.get_pc() + 1
                 self.set_sp(sp - 1)
                 self.set_pc(call_addr)
                 
             elif cmd == 'RET':
-                # RET - Return from subroutine
                 sp = self.get_sp() + 1
                 if sp >= len(self.memory):
                     raise RuntimeError("Stack underflow in RET")
@@ -334,211 +343,163 @@ class GTUC312CPU:
                 self.set_pc(return_addr)
                 
             elif cmd == 'HLT':
-                # HLT - Halt CPU
-                print("🛑 CPU HALT instruction executed")
+                halt_msg = "🛑 CPU HALT instruction executed"
+                print(halt_msg)
+                self.output_manager.log(halt_msg)
                 self.halt()
                 
             elif cmd == 'USER':
-                # USER A - Switch to user mode and jump to memory[A]
                 addr = int(parts[1])
                 self._check_memory_access(addr, "read")
                 target_addr = self.memory[addr]
-                print(f"🔄 Switching to USER mode, jumping to address {target_addr}")
+                switch_msg = f"🔄 Switching to USER mode, jumping to address {target_addr}"
+                print(switch_msg)
+                self.output_manager.log_context_switch(switch_msg)
                 self.kernel_mode = False
                 self.context_switches += 1
                 self.set_pc(target_addr)
                 
             elif cmd == 'SYSCALL':
-                # SYSCALL - Handle system calls
                 self._handle_syscall(parts[1:])
                 
             else:
-                print(f"⚠️ Unknown instruction: {cmd}")
+                unknown_msg = f"⚠️ Unknown instruction: {cmd}"
+                print(unknown_msg)
+                self.output_manager.log_error(unknown_msg)
                 self.set_pc(self.get_pc() + 1)
                 
         except (IndexError, ValueError) as e:
-            print(f"💥 Instruction format error: {instruction}")
-            print(f"Error: {e}")
+            format_error = f"💥 Instruction format error: {instruction} - {e}"
+            print(format_error)
+            self.output_manager.log_error(format_error)
             self.set_pc(self.get_pc() + 1)
         except (MemoryError, RuntimeError) as e:
-            print(f"💥 Runtime error: {e}")
+            runtime_error = f"💥 Runtime error: {e}"
+            print(runtime_error)
+            self.output_manager.log_error(runtime_error)
             self.halt()
     
     def _handle_syscall(self, args: List[str]):
-        """Handle system calls"""
+        """Handle system calls - COMPREHENSIVE FIX"""
         if not args:
-            print("⚠️ SYSCALL with no arguments")
+            error_msg = "⚠️ SYSCALL with no arguments"
+            print(error_msg)
+            self.output_manager.log_error(error_msg)
             self.set_pc(self.get_pc() + 1)
             return
         
         # Switch to kernel mode
-        was_kernel = self.kernel_mode
+        was_user_mode = not self.kernel_mode
         self.kernel_mode = True
         
         syscall_type = args[0].upper()
         
         if syscall_type == 'PRN':
-            # SYSCALL PRN A - Print memory[A]
             if len(args) > 1:
                 try:
                     addr = int(args[1])
                     self._check_memory_access(addr, "read")
                     value = self.memory[addr]
-                    print(f"📤 OUTPUT: {value}")
-                    # Store result in system call result register
+                    self.output_manager.log_output(value)
                     self.memory[2] = value
                 except (ValueError, MemoryError) as e:
-                    print(f"💥 SYSCALL PRN error: {e}")
+                    error_msg = f"💥 SYSCALL PRN error: {e}"
+                    print(error_msg)
+                    self.output_manager.log_error(error_msg)
             else:
-                print("⚠️ SYSCALL PRN missing address argument")
+                error_msg = "⚠️ SYSCALL PRN missing address argument"
+                print(error_msg)
+                self.output_manager.log_error(error_msg)
+            
+            self.set_pc(self.get_pc() + 1)
                 
         elif syscall_type == 'HLT':
-            # SYSCALL HLT - Halt current thread
-            print("🛑 SYSCALL HLT - Thread termination requested")
+            halt_msg = "🛑 SYSCALL HLT - Thread termination requested"
+            print(halt_msg)
+            self.output_manager.log(halt_msg)
             self.halt()
             
         elif syscall_type == 'YIELD':
-            # SYSCALL YIELD - Yield CPU to scheduler
-            print("🔄 SYSCALL YIELD - Thread yielding CPU")
+            # CRITICAL FIX: Proper SYSCALL YIELD handling
+            yield_msg = "🔄 SYSCALL YIELD - Thread yielding CPU"
+            print(yield_msg)
+            self.output_manager.log_context_switch(yield_msg)
             self.context_switches += 1
-            # In a real OS, this would trigger scheduler
-            # For simulation, we continue execution
+            
+            if was_user_mode:
+                # Switch back to kernel mode and jump to OS scheduler
+                self.kernel_mode = True
+                self.set_pc(self.os_scheduler_address)
+                return_msg = f"🔄 Returning to OS scheduler at address {self.os_scheduler_address}"
+                print(return_msg)
+                self.output_manager.log_context_switch(return_msg)
+            else:
+                # If already in kernel mode, just continue
+                self.set_pc(self.get_pc() + 1)
             
         else:
-            print(f"⚠️ Unknown system call: {syscall_type}")
-        
-        if not self.halted:
+            unknown_msg = f"⚠️ Unknown system call: {syscall_type}"
+            print(unknown_msg)
+            self.output_manager.log_error(unknown_msg)
             self.set_pc(self.get_pc() + 1)
     
     def _check_memory_access(self, addr: int, access_type: str):
         """Check memory access permissions"""
-        # Bounds check
         if addr < 0 or addr >= len(self.memory):
             raise MemoryError(f"Memory address out of bounds: {addr}")
         
-        # Protection check (USER mode cannot access < 1000)
         if not self.kernel_mode and addr < 1000:
             raise MemoryError(f"Memory protection violation: {access_type} access to address {addr}")
     
     # Register access methods
     def get_pc(self) -> int:
-        """Get Program Counter"""
         return self.memory[0]
     
     def set_pc(self, value: int):
-        """Set Program Counter"""
         self.memory[0] = value
     
     def get_sp(self) -> int:
-        """Get Stack Pointer"""
         return self.memory[1]
     
     def set_sp(self, value: int):
-        """Set Stack Pointer"""
         self.memory[1] = value
     
     def get_instruction_count(self) -> int:
-        """Get instruction execution count"""
         return self.memory[3]
     
     def halt(self):
-        """Halt the CPU"""
         self.halted = True
-        print("🛑 CPU HALTED")
+        halt_msg = "🛑 CPU HALTED"
+        print(halt_msg)
+        self.output_manager.log(halt_msg)
     
     def is_halted(self) -> bool:
-        """Check if CPU is halted"""
         return self.halted
     
     def _debug_step(self):
         """Debug mode 2: step by step execution"""
-        self._print_current_state()
         try:
             user_input = input("Press Enter to continue (or 'q' to quit): ").strip().lower()
             if user_input == 'q':
                 print("🛑 User requested quit")
+                self.output_manager.log("🛑 User requested quit")
                 self.halt()
         except KeyboardInterrupt:
             print("\n🛑 User interrupted")
+            self.output_manager.log("🛑 User interrupted")
             self.halt()
-    
-    def _print_current_state(self):
-        """Print current CPU state"""
-        print(f"\n📊 === CPU STATE ===", file=sys.stderr)
-        print(f"PC: {self.get_pc():4d} | SP: {self.get_sp():4d} | Mode: {'KERNEL' if self.kernel_mode else 'USER'}", file=sys.stderr)
-        print(f"Instructions: {self.get_instruction_count():4d} | Context Switches: {self.context_switches}", file=sys.stderr)
-        
-        # Show some relevant memory
-        pc = self.get_pc()
-        if pc in self.instructions:
-            print(f"Next: {self.instructions[pc]}", file=sys.stderr)
-        
-        print("Recent memory changes:", file=sys.stderr)
-        for addr in range(0, min(21, len(self.memory))):
-            if self.memory[addr] != 0:
-                print(f"  [{addr:3d}] = {self.memory[addr]:6d}", file=sys.stderr)
-        print("==================\n", file=sys.stderr)
-    
-    def _print_memory_state(self):
-        """Print full memory state (debug mode 1)"""
-        print(f"\n📋 === MEMORY DUMP ===", file=sys.stderr)
-        print(f"PC: {self.get_pc()} | SP: {self.get_sp()} | Instructions: {self.get_instruction_count()}", file=sys.stderr)
-        
-        # Print non-zero memory locations
-        for addr in range(len(self.memory)):
-            if self.memory[addr] != 0:
-                print(f"MEM[{addr:4d}] = {self.memory[addr]:8d}", file=sys.stderr)
-        print("====================\n", file=sys.stderr)
-    
-    def _print_thread_state(self):
-        """Print thread state information (debug mode 3)"""
-        print(f"\n🧵 === THREAD STATE ===", file=sys.stderr)
-        print(f"PC: {self.get_pc()} | Mode: {'KERNEL' if self.kernel_mode else 'USER'}", file=sys.stderr)
-        print(f"Instructions: {self.get_instruction_count()} | Context Switches: {self.context_switches}", file=sys.stderr)
-        
-        # Try to identify current thread based on PC
-        pc = self.get_pc()
-        if pc < 1000:
-            print("Current: OS/Kernel", file=sys.stderr)
-        elif 1000 <= pc < 2000:
-            print("Current: Thread 1 (Sorting)", file=sys.stderr)
-        elif 2000 <= pc < 3000:
-            print("Current: Thread 2 (Search)", file=sys.stderr)
-        elif 3000 <= pc < 4000:
-            print("Current: Thread 3 (Custom)", file=sys.stderr)
-        else:
-            print(f"Current: Thread at {pc}", file=sys.stderr)
-        
-        print("======================\n", file=sys.stderr)
-    
-    def _print_final_memory_state(self):
-        """Print final memory state (debug mode 0)"""
-        print(f"\n🏁 === FINAL MEMORY STATE ===", file=sys.stderr)
-        print(f"Total Instructions: {self.get_instruction_count()}", file=sys.stderr)
-        print(f"Context Switches: {self.context_switches}", file=sys.stderr)
-        print(f"Final PC: {self.get_pc()}", file=sys.stderr)
-        
-        # Print all non-zero memory
-        non_zero_count = 0
-        for addr in range(len(self.memory)):
-            if self.memory[addr] != 0:
-                print(f"MEM[{addr:4d}] = {self.memory[addr]:8d}", file=sys.stderr)
-                non_zero_count += 1
-        
-        print(f"Non-zero memory locations: {non_zero_count}", file=sys.stderr)
-        print("============================\n", file=sys.stderr)
 
 
 def main():
-    """Main function"""
+    """Main function with enhanced output management"""
     if len(sys.argv) < 2:
-        print("Usage: python cpu_simulator.py <program_file> [-D <debug_mode>]")
+        print("Usage: python cpu_simulator_fixed.py <program_file> [-D <debug_mode>]")
         print("\nDebug modes:")
         print("  0 - Final memory state only")
         print("  1 - Memory state after each instruction")
         print("  2 - Step-by-step execution (interactive)")
         print("  3 - Thread state information")
-        print("\nExample: python cpu_simulator.py os_program.txt -D 1")
+        print("\nExample: python cpu_simulator_fixed.py os_program.txt -D 1")
         sys.exit(1)
     
     filename = sys.argv[1]
@@ -555,13 +516,13 @@ def main():
             print("Invalid debug mode value")
             sys.exit(1)
     
-    print("🖥️  GTU-C312 CPU Simulator")
-    print("=" * 50)
+    print("🖥️  GTU-C312 CPU Simulator - COMPREHENSIVE FIX")
+    print("=" * 60)
     print(f"Program: {filename}")
     print(f"Debug Mode: {debug_mode}")
-    print(f"Author: Helin Sygl")
-    print(f"Date: 2025-06-04")
-    print("=" * 50)
+    print(f"Author: helinsygl")
+    print(f"Date: 2025-06-04 14:25:46 UTC")
+    print("=" * 60)
     
     # Create and run CPU
     cpu = GTUC312CPU(debug_mode)
@@ -569,6 +530,7 @@ def main():
     cpu.run()
     
     print("\n✅ Simulation completed successfully!")
+    print(f"📁 Check outputs/ directory for detailed logs")
 
 
 if __name__ == "__main__":
