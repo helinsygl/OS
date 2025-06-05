@@ -1,0 +1,21 @@
+✓ Program loaded successfully: testfiles/test_cpy.gtu
+🚀 Starting GTU-C312 execution...
+Initial PC: 10, SP: 0
+--------------------------------------------------
+[0000] PC:0010 | CPY 101 102
+[0001] PC:0011 | SYSCALL HLT
+============================================================
+EXECUTION COMPLETED
+============================================================
+Total Instructions Executed: 2
+Context Switches: 0
+Final PC: 11
+End Time: 2025-06-05 20:14:31 UTC
+============================================================
+
+🏁 === FINAL MEMORY STATE ===
+Non-zero memory locations: 3
+==============================
+[0000] = 11
+[0101] = 55
+[0102] = 55
