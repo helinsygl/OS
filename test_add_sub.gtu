@@ -1,0 +1,19 @@
+# test_add_sub.gtu
+Begin Data Section
+0 10    # PC: program starts at instruction 10
+1 1000  # SP: stack pointer
+100 15  # First number
+101 7   # Second number
+102 0   # Result
+103 0   # Result2
+End Data Section
+
+Begin Instruction Section
+10 CPY 8 100      # mem[8] = mem[100] = 15
+11 CPY 9 101      # mem[9] = mem[101] = 7
+12 ADDI 8 9       # mem[8] += mem[9] = 22
+13 CPY 102 8      # mem[102] = mem[8] = 22
+14 SUBI 8 9       # mem[9] = mem[8] - mem[9] = 15
+15 CPY 103 9      # mem[103] = mem[9] = 15
+16 SYSCALL HLT
+End Instruction Section 

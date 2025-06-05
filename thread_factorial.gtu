@@ -1,0 +1,38 @@
+# thread_factorial.gtu - ÇALIŞAN FAKTÖRİYEL (5!)
+Begin Data Section
+0 4000    # Program entry point (PC)
+4000 5    # N (hesaplanacak faktöriyel)
+4001 1    # result (başlangıçta 1)
+4002 1    # counter (başlangıçta 1)
+4003 0    # temp_sum (çarpma için)
+4004 0    # inner_counter (çarpma için)
+End Data Section
+Begin Instruction Section
+# Outer loop: while counter <= N
+4000 CPY 10 4002      # mem[10] = counter
+4001 CPY 11 4000      # mem[11] = N
+4002 SUBI 10 11       # mem[10] = counter - N
+4003 JIF 10 4020      # if counter > N goto end
+
+# result = result * counter (repeated addition)
+4004 SET 0 4003       # temp_sum = 0
+4005 SET 0 4004       # inner_counter = 0
+
+# Inner loop: while inner_counter < counter
+4006 CPY 12 4004      # mem[12] = inner_counter
+4007 CPY 13 4002      # mem[13] = counter
+4008 SUBI 12 13       # mem[12] = inner_counter - counter
+4009 JIF 12 4014      # if inner_counter >= counter goto after inner loop
+4010 ADD 4001 4003    # temp_sum += result
+4011 ADD 4004 1       # inner_counter++
+4012 JIF 0 4006       # loop inner
+
+# After inner loop
+4014 CPY 4003 4001    # result = temp_sum
+4015 ADD 4002 1       # counter++
+4016 JIF 0 4000       # loop outer
+
+# End
+4020 SYSCALL PRN 4001
+4021 SYSCALL HLT
+End Instruction Section 

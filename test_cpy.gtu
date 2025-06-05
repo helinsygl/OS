@@ -1,0 +1,11 @@
+# test_cpy.gtu
+Begin Data Section
+0 10
+101 55
+102 0
+End Data Section
+
+Begin Instruction Section
+10 CPY 101 102
+11 SYSCALL HLT
+End Instruction Section 

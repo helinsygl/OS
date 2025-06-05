@@ -1,0 +1,36 @@
+# thread_linearsearch.gtu - Standalone Linear Search Test
+Begin Data Section
+0 2000  # Program entry point (PC)
+2000 10  # N = number of elements
+2001 5   # Search key
+2002 64  # Array element 1
+2003 34  # Array element 2
+2004 25  # Array element 3
+2005 12  # Array element 4
+2006 22  # Array element 5
+2007 11  # Array element 6
+2008 5   # Array element 7 (target)
+2009 88  # Array element 8
+2010 76  # Array element 9
+2011 50  # Array element 10
+2012 0   # Current index
+2013 -1  # Found position (-1 = not found)
+End Data Section
+Begin Instruction Section
+2000 SET 0 2012      # i = 0
+2001 CPYI 2000 2013  # n = mem[2000]
+2002 CPYI 2001 2014  # key = mem[2001]
+2003 JIF 2012 2020   # if i >= n goto not found
+2004 ADDI 2002 2012  # addr = 2002 + i
+2005 CPYI 2004 8     # val = mem[addr]
+2006 SUBI 8 2014
+2007 JIF 8 2010      # if val == key goto found
+2008 ADD 2012 1      # i++
+2009 SET 2003 0      # loop
+2010 CPY 2012 2015   # found at i
+2011 SYSCALL PRN 2015
+2012 SYSCALL HLT
+2020 SET -1 2015     # not found
+2021 SYSCALL PRN 2015
+2022 SYSCALL HLT
+End Instruction Section 

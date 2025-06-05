@@ -1,0 +1,247 @@
+# os.gtu - GTU-C312 Operating System
+# Thread Table (21-80)
+# Format: [ID, State, PC, SP, Start, InstrCount]
+# States: 0=READY, 1=RUNNING, 2=BLOCKED
+
+Begin Data Section
+# System Registers
+0 100    # PC: Scheduler starts at 100
+1 1000   # SP: Stack pointer starts at 1000
+
+# Thread Table (21-80)
+# Thread 1 - Bubble Sort
+21 1     # ID
+22 0     # State (0=READY)
+23 1000  # PC
+24 1900  # SP
+25 1000  # Start Address
+26 0     # Instruction Count
+
+# Thread 2 - Linear Search
+27 2     # ID
+28 0     # State (0=READY)
+29 2000  # PC
+30 2900  # SP
+31 2000  # Start Address
+32 0     # Instruction Count
+
+# Thread 3 - Factorial
+33 3     # ID
+34 0     # State (0=READY)
+35 3000  # PC
+36 3900  # SP
+37 3000  # Start Address
+38 0     # Instruction Count
+
+# Thread 4-10 (Inactive)
+39 4     # ID
+40 2     # State (2=BLOCKED)
+41 4000  # PC
+42 4900  # SP
+43 4000  # Start Address
+44 0     # Instruction Count
+
+45 5     # ID
+46 2     # State (2=BLOCKED)
+47 5000  # PC
+48 5900  # SP
+49 5000  # Start Address
+50 0     # Instruction Count
+
+51 6     # ID
+52 2     # State (2=BLOCKED)
+53 6000  # PC
+54 6900  # SP
+55 6000  # Start Address
+56 0     # Instruction Count
+
+57 7     # ID
+58 2     # State (2=BLOCKED)
+59 7000  # PC
+60 7900  # SP
+61 7000  # Start Address
+62 0     # Instruction Count
+
+63 8     # ID
+64 2     # State (2=BLOCKED)
+65 8000  # PC
+66 8900  # SP
+67 8000  # Start Address
+68 0     # Instruction Count
+
+69 9     # ID
+70 2     # State (2=BLOCKED)
+71 9000  # PC
+72 9900  # SP
+73 9000  # Start Address
+74 0     # Instruction Count
+
+75 10    # ID
+76 2     # State (2=BLOCKED)
+77 10000 # PC
+78 10900 # SP
+79 10000 # Start Address
+80 0     # Instruction Count
+
+# Thread 1 Data (1000-1999) - Bubble Sort
+1000 10  # N = number of elements to sort
+1001 64  # Array element 1
+1002 34  # Array element 2
+1003 25  # Array element 3
+1004 12  # Array element 4
+1005 22  # Array element 5
+1006 11  # Array element 6
+1007 90  # Array element 7
+1008 88  # Array element 8
+1009 76  # Array element 9
+1010 50  # Array element 10
+1011 0   # i counter
+1012 0   # j counter
+1013 0   # temp for swapping
+1014 0   # comparison result
+1900 0   # Stack area for thread 1
+
+# Thread 2 Data (2000-2999) - Linear Search
+2000 10  # N = number of elements
+2001 5   # Search key
+2002 64  # Array element 1
+2003 34  # Array element 2
+2004 25  # Array element 3
+2005 12  # Array element 4
+2006 22  # Array element 5
+2007 11  # Array element 6
+2008 5   # Array element 7 (target)
+2009 88  # Array element 8
+2010 76  # Array element 9
+2011 50  # Array element 10
+2012 0   # Current index
+2013 -1  # Found position (-1 = not found)
+2900 0   # Stack area
+
+# Thread 3 Data (3000-3999) - Factorial
+3000 5   # N = calculate factorial of 5
+3001 1   # Result (factorial)
+3002 1   # Counter
+3900 0   # Stack area
+
+End Data Section
+
+Begin Instruction Section
+# OS Kernel Code starts here
+# Initialize first thread
+21 SET 4 1          # current_thread_id = 1
+22 CALL 100         # Call scheduler
+23 SET 21 0         # Mark OS as done
+
+# Scheduler function at instruction 100
+100 CPY 4 7         # current_thread_id = memory[4]
+101 JIF 7 115       # If current_thread_id == 0, skip thread save
+102 SUBI 7 1        # t = current_thread_id - 1
+103 SET 8 0         # offset = 0
+104 SET 9 0         # k = 0
+105 SET 6 10        # target = 6
+106 SUBI 9 10       # k - 6
+107 JIF 105 112     # if k == 6 goto 112
+108 ADD 8 103       # offset += t
+109 ADD 9 1         # k++
+110 SET 104 0       # loop
+# offset ready
+111 ADD 21 8        # entry_addr = 21 + offset
+112 ADD 111 2       # pc_addr = entry_addr + 2
+113 CPY 0 112       # mem[0] = mem[pc_addr]
+114 ADD 111 3       # sp_addr = entry_addr + 3
+115 CPY 1 114       # mem[1] = mem[sp_addr]
+
+# Now select next thread and context switch
+116 SET 5 1         # next_thread = 1
+117 SET 6 21        # base_addr = 21
+# Loop: thread 1-3
+118 CPY 5 7         # current = next_thread
+119 SUBI 7 1        # t = current - 1
+120 SET 8 0         # offset = 0
+121 SET 9 0         # k = 0
+122 SET 10 6        # target = 6
+123 SUBI 9 10       # k - 6
+124 JIF 123 128     # if k == 6 goto 128
+125 ADD 8 119       # offset += t
+126 ADD 9 1         # k++
+127 SET 122 0       # loop
+# offset ready
+128 ADD 6 8         # entry_addr = base_addr + offset
+129 ADD 128 1       # state_addr = entry_addr + 1
+130 CPYI 129 8      # state = mem[state_addr]
+131 JIF 8 132       # if state == 0 (READY), do context switch
+132 SET 9 1         # state = RUNNING
+133 CPY 9 129       # mem[state_addr] = RUNNING
+# Context switch
+134 ADD 128 2       # pc_addr = entry_addr + 2
+135 CPYI 134 0      # PC = mem[pc_addr]
+136 ADD 128 3       # sp_addr = entry_addr + 3
+137 CPYI 136 1      # SP = mem[sp_addr]
+138 CPY 5 4         # current_thread_id = next_thread
+139 CPY 0 135       # PC = mem[pc_addr]
+# Next thread
+140 ADD 5 1         # next_thread++
+141 JIF 5 118       # loop if next_thread <= 3
+142 SET 100 0       # restart scheduler
+
+# Thread 1: Bubble Sort
+1000 SET 0 1011      # i = 0
+1001 CPYI 1000 1012  # n = mem[1000]
+1002 SUBI 1012 1     # n-1
+1003 JIF 1011 1050   # if i >= n-1 goto end
+1004 SET 0 1013      # j = 0
+1005 SUBI 1012 1011  # n-1-i
+1006 JIF 1013 1040   # if j >= n-1-i goto next i
+1007 ADDI 1001 1013  # addr1 = 1001 + j
+1008 ADD 1001 1013   # addr2 = addr1 + 1
+1009 CPYI 1007 8     # a = mem[addr1]
+1010 CPYI 1008 9     # b = mem[addr2]
+1011 SUBI 8 9
+1012 JIF 8 1030      # if a <= b skip swap
+1013 CPY 9 1007      # mem[addr1] = b
+1014 CPY 8 1008      # mem[addr2] = a
+1030 ADD 1013 1      # j++
+1031 SET 1005 0      # loop j
+1040 ADD 1011 1      # i++
+1041 SET 1001 0      # loop i
+1050 SYSCALL YIELD
+
+# Thread 2: Linear Search
+2000 SET 0 2012      # i = 0
+2001 CPYI 2000 2013  # n = mem[2000]
+2002 CPYI 2001 2014  # key = mem[2001]
+2003 JIF 2012 2020   # if i >= n goto not found
+2004 ADDI 2002 2012  # addr = 2002 + i
+2005 CPYI 2004 8     # val = mem[addr]
+2006 SUBI 8 2014
+2007 JIF 8 2010      # if val == key goto found
+2008 ADD 2012 1      # i++
+2009 SET 2003 0      # loop
+2010 CPY 2012 2015   # found at i
+2011 SYSCALL YIELD
+2020 SET -1 2015     # not found
+2021 SYSCALL YIELD
+
+# Thread 3: Factorial
+3000 CPYI 3002 8     # counter = mem[3002]
+3001 CPYI 3000 9     # n = mem[3000]
+3002 SUBI 9 8        # n - counter
+3003 JIF 9 3010      # if counter > n goto end
+3004 ADDI 3001 3002  # result *= counter
+3005 ADD 3002 1      # counter++
+3006 SYSCALL PRN     # Print result
+3007 SET 3000 0      # loop
+3010 SYSCALL PRN     # Print final result
+3011 SYSCALL YIELD
+3012 SET 3000 0      # loop
+
+# Inactive Threads 4-10
+4000 SYSCALL HLT
+5000 SYSCALL HLT
+6000 SYSCALL HLT
+7000 SYSCALL HLT
+8000 SYSCALL HLT
+9000 SYSCALL HLT
+10000 SYSCALL HLT
+End Instruction Section

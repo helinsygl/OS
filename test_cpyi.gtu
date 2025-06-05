@@ -1,0 +1,11 @@
+# test_cpyi.gtu
+Begin Data Section
+0 10
+103 105
+104 0
+105 77
+End Data Section
+Begin Instruction Section
+10 CPYI 103 104
+11 SYSCALL HLT
+End Instruction Section 

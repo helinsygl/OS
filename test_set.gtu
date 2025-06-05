@@ -1,0 +1,9 @@
+# test_set.gtu
+Begin Data Section
+0 10
+100 0
+End Data Section
+Begin Instruction Section
+10 SET 42 100
+11 SYSCALL HLT
+End Instruction Section 

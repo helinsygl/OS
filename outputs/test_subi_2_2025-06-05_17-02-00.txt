@@ -1,0 +1,21 @@
+✓ Program loaded successfully: test_subi.gtu
+🚀 Starting GTU-C312 execution...
+Initial PC: 10, SP: 0
+--------------------------------------------------
+[0000] PC:0010 | SUBI 200 201
+[0001] PC:0011 | SYSCALL HLT
+============================================================
+EXECUTION COMPLETED
+============================================================
+Total Instructions Executed: 2
+Context Switches: 0
+Final PC: 11
+End Time: 2025-06-05 14:02:03 UTC
+============================================================
+
+🏁 === FINAL MEMORY STATE ===
+Non-zero memory locations: 3
+==============================
+[0000] = 11
+[0200] = 7
+[0201] = 3

@@ -1,0 +1,20 @@
+✓ Program loaded successfully: test_set.gtu
+🚀 Starting GTU-C312 execution...
+Initial PC: 10, SP: 0
+--------------------------------------------------
+[0000] PC:0010 | SET 42 100
+[0001] PC:0011 | SYSCALL HLT
+============================================================
+EXECUTION COMPLETED
+============================================================
+Total Instructions Executed: 2
+Context Switches: 0
+Final PC: 11
+End Time: 2025-06-05 17:31:46 UTC
+============================================================
+
+🏁 === FINAL MEMORY STATE ===
+Non-zero memory locations: 2
+==============================
+[0000] = 11
+[0100] = 42

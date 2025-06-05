@@ -1,0 +1,10 @@
+# test_jif.gtu
+Begin Data Section
+0 10
+300 0
+End Data Section
+Begin Instruction Section
+10 JIF 300 12
+11 SYSCALL HLT
+12 SYSCALL HLT
+End Instruction Section 

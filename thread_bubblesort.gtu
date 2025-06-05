@@ -1,0 +1,46 @@
+# thread_bubblesort.gtu - Standalone Bubble Sort Test
+Begin Data Section
+0 1000  # Program entry point (PC)
+1000 10  # N = number of elements to sort
+1001 64  # Array element 1
+1002 34  # Array element 2
+1003 25  # Array element 3
+1004 12  # Array element 4
+1005 22  # Array element 5
+1006 11  # Array element 6
+1007 90  # Array element 7
+1008 88  # Array element 8
+1009 76  # Array element 9
+1010 50  # Array element 10
+1011 0   # i counter
+1012 0   # j counter
+1013 0   # temp for swapping
+1014 0   # comparison result
+End Data Section
+Begin Instruction Section
+# Outer loop: for i = 0 to n-2
+1000 SET 0 1011      # i = 0
+1001 CPYI 1000 1012  # n = mem[1000]
+1002 SUBI 1012 1     # n-1
+1003 SUBI 1011 1012  # i - (n-1)
+1004 JIF 1011 1050   # if i >= n-1 goto end
+# Inner loop: for j = 0 to n-i-2
+1005 SET 0 1013      # j = 0
+1006 SUBI 1012 1011  # n-1-i
+1007 SUBI 1013 1012  # j - (n-1-i)
+1008 JIF 1013 1040   # if j >= n-1-i goto next i
+1009 ADDI 1001 1013  # addr1 = 1001 + j
+1010 ADD 1001 1013   # addr2 = addr1 + 1
+1011 CPYI 1009 8     # a = mem[addr1]
+1012 CPYI 1010 9     # b = mem[addr2]
+1013 SUBI 8 9
+1014 JIF 8 1030      # if a <= b skip swap
+1015 CPY 9 1009      # mem[addr1] = b
+1016 CPY 8 1010      # mem[addr2] = a
+1030 ADD 1013 1      # j++
+1031 SET 1006 0      # loop j
+1040 ADD 1011 1      # i++
+1041 SET 1000 0      # loop i
+1050 SYSCALL PRN 1001
+1051 SYSCALL HLT
+End Instruction Section 
